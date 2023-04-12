@@ -32,6 +32,21 @@ A class for wrapping Cohere's LLM.
 10. **ChatBot**
 A class for creating chatbot instances based on provided LLMs.
 
+## Required Setup
+1. Install dotenv (linux & mac), or python-dotenv (Windows)
+```cmd
+pip install python-dotenv
+```
+2. Install openai, cohere
+```cmd
+pip install openai cohere
+```
+OR
+1. Install all from requirements.txt
+```cmd
+pip install -r requirements.txt
+```
+
 ## Example Usage
 ### Import the required libraries
 ```python

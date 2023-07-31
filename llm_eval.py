@@ -140,6 +140,10 @@ class OpenAIModel(Enum):
 class OpenAIGPTWrapper():
 
     def __init__(self, apikey, model=OpenAIModel.GPT3.value):
+        if not apikey:
+            raise ValueError("API key cannot be null or empty")
+        if model not in OpenAIModel.__members__:
+            raise ValueError("Invalid model selected")
         openai.api_key = apikey
         self.model = model
 
@@ -148,14 +152,18 @@ class OpenAIGPTWrapper():
     
     def complete_chat(self, messages, append_role=None):
 
-        if self.model.find('gpt-4') >= 0 or self.model.find('gpt-3.5') >= 0:
+        try:
+            if self.model.find('gpt-4') >= 0 or self.model.find('gpt-3.5') >= 0:
 
-            response = openai.ChatCompletion.create(
-                model=self.model,
-                messages=messages
-            )
-            top_response_content = response['choices'][0]['message']['content']
-            return top_response_content
+                response = openai.ChatCompletion.create(
+                    model=self.model,
+                    messages=messages
+                )
+                top_response_content = response['choices'][0]['message']['content']
+                return top_response_content
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return None
 
         else:
 
@@ -198,6 +206,8 @@ class OpenAIGPTWrapper():
 class ClaudeWrapper():
 
     def __init__(self, apikey, model="claude-v1"):
+        if not apikey:
+            raise ValueError("API key cannot be null or empty")
         self.apikey = apikey
         self.model = model
 
@@ -205,22 +215,26 @@ class ClaudeWrapper():
         return f"ClaudeWrapper(model={self.model})"
     
     def complete_chat(self, messages, append_role=None):
-        r_headers = {"X-API-Key":self.apikey, "Accept":"application/json"}
+        try:
+            r_headers = {"X-API-Key":self.apikey, "Accept":"application/json"}
 
-        prompt_text = _clean_messages_to_prompt(messages)
-        if append_role is not None and len(append_role) > 0:
-            prompt_text += f"\n{append_role}: "
+            prompt_text = _clean_messages_to_prompt(messages)
+            if append_role is not None and len(append_role) > 0:
+                prompt_text += f"\n{append_role}: "
 
-        r_data = {"prompt": prompt_text,
-                  "model": self.model,
-                  "max_tokens_to_sample": 300, 
-                  "stop_sequences": _get_stop_sequences_from_messages(messages)
-                }
+            r_data = {"prompt": prompt_text,
+                      "model": self.model,
+                      "max_tokens_to_sample": 300, 
+                      "stop_sequences": _get_stop_sequences_from_messages(messages)
+                    }
 
-        resp = requests.post("https://api.anthropic.com/v1/complete", headers=r_headers, json=r_data)
-        completion = json.loads(resp.text)["completion"].strip()
+            resp = requests.post("https://api.anthropic.com/v1/complete", headers=r_headers, json=r_data)
+            completion = json.loads(resp.text)["completion"].strip()
 
-        return completion
+            return completion
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return None
     
     def text_completion(self, prompt, stop_sequences=[]):
         r_headers = {"X-API-Key":self.apikey, "Accept":"application/json"}
@@ -237,6 +251,8 @@ class ClaudeWrapper():
 class CohereWrapper():
 
     def __init__(self, apikey, model="xlarge"):
+        if not apikey:
+            raise ValueError("API key cannot be null or empty")
         self.apikey = apikey
         self.model = model
 
@@ -245,23 +261,27 @@ class CohereWrapper():
 
     def complete_chat(self, messages, append_role=None):
 
-        prompt_text = _clean_messages_to_prompt(messages)
-        if append_role is not None and len(append_role) > 0:
-            prompt_text += f"\n{append_role}:"
+        try:
+            prompt_text = _clean_messages_to_prompt(messages)
+            if append_role is not None and len(append_role) > 0:
+                prompt_text += f"\n{append_role}:"
 
-        co = cohere.Client(self.apikey)
-        response = co.generate(
-            prompt=prompt_text,
-            max_tokens=300, 
-            stop_sequences=_get_stop_sequences_from_messages(messages)
-        )
+            co = cohere.Client(self.apikey)
+            response = co.generate(
+                prompt=prompt_text,
+                max_tokens=300, 
+                stop_sequences=_get_stop_sequences_from_messages(messages)
+            )
 
-        resp = response.generations[0].text
+            resp = response.generations[0].text
 
-        for s in _get_stop_sequences_from_messages(messages):
-            resp = resp.replace(s, "").strip()
+            for s in _get_stop_sequences_from_messages(messages):
+                resp = resp.replace(s, "").strip()
 
-        return resp
+            return resp
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return None
 
     def text_completion(self, prompt, stop_sequences=[]):
         co = cohere.Client(self.apikey)

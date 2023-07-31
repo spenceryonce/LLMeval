@@ -3,11 +3,15 @@ from dotenv import load_dotenv
 import llm_eval
 
 load_dotenv()
-openai_api_key = os.getenv("OPENAI_API_KEY")
-anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-cohere_api_key = os.getenv("COHERE_API_KEY")
+if not openai_api_key:
+    raise ValueError("OPENAI_API_KEY cannot be null or empty")
+e = llm_eval.GPT35Evaluator(openai_api_key)
 
+if not anthropic_api_key:
+    raise ValueError("ANTHROPIC_API_KEY cannot be null or empty")
 
+if not cohere_api_key:
+    raise ValueError("COHERE_API_KEY cannot be null or empty")
 # We'll use GPT-3.5 as the evaluator.
 e = llm_eval.GPT35Evaluator(openai_api_key)
 

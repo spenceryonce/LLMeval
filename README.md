@@ -1,3 +1,4 @@
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/spenceryonce/LLMeval)
 # LLM Evaluation
 This library provides a collection of classes and functions to evaluate and compare different large language models (LLMs). The main purpose of the library is to build chatbots and evaluate their responses based on given objectives.
 

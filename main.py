@@ -1,44 +1,80 @@
 import os
-from dotenv import load_dotenv
+import sys
 import llm_eval
-
-load_dotenv()
-openai_api_key = os.getenv("OPENAI_API_KEY")
-anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-cohere_api_key = os.getenv("COHERE_API_KEY")
+from dotenv import load_dotenv
 
 
-# We'll use GPT-3.5 as the evaluator.
-e = llm_eval.GPT35Evaluator(openai_api_key)
+def get_api_keys():
+    """Load and validate API keys from environment variables."""
+    load_dotenv()
+    api_keys = {
+        "openai": os.getenv("OPENAI_API_KEY"),
+        "anthropic": os.getenv("ANTHROPIC_API_KEY"),
+        "cohere": os.getenv("COHERE_API_KEY"),
+    }
 
-objective = "We're building a chatbot to discuss a user's travel preferences and provide advice."
+    if not api_keys["openai"]:
+        print("Error: OPENAI_API_KEY not found in .env file or environment variables.")
+        sys.exit(1)
+    if not api_keys["cohere"]:
+        print("Error: COHERE_API_KEY not found in .env file or environment variables.")
+        sys.exit(1)
 
-# Chats that have been launched by users.
-travel_chat_starts = [
-    "I'm planning to visit Tulsa in spring.",
-    "I'm looking for the cheapest flight to Spain today."
-]
+    return api_keys
 
-cohere_model = llm_eval.CohereWrapper(cohere_api_key)
-davinici3_model = llm_eval.OpenAIGPTWrapper(openai_api_key, model=llm_eval.OpenAIModel.DAVINCI3.value)
-chatgpt35_model = llm_eval.OpenAIGPTWrapper(openai_api_key)
 
-for tcs in travel_chat_starts:
+def initialize_models(api_keys):
+    """Initialize the language models."""
+    return {
+        "cohere": llm_eval.CohereWrapper(api_keys["cohere"]),
+        "davinci3": llm_eval.OpenAIGPTWrapper(
+            api_keys["openai"], model=llm_eval.OpenAIModel.DAVINCI3.value
+        ),
+        "gpt3.5": llm_eval.OpenAIGPTWrapper(api_keys["openai"]),
+    }
 
-    messages = [{"role":"system", "content":objective},
-            {"role":"user", "content":tcs}]
 
-    response_cohere = cohere_model.complete_chat(messages, "assistant")
-    response_gpt35 = chatgpt35_model.complete_chat(messages, "assistant")
+def run_evaluation(evaluator, objective, chat_start, model1, model2):
+    """Run a single evaluation between two models."""
+    messages = [
+        {"role": "system", "content": objective},
+        {"role": "user", "content": chat_start},
+    ]
 
-    response_davinvi3 = davinici3_model.complete_chat(messages, "assistant")
+    response1 = model1.complete_chat(messages, "assistant")
+    response2 = model2.complete_chat(messages, "assistant")
 
-    pref = e.choose(objective, tcs, response_cohere, response_gpt35)
-    print(f"1: {response_cohere}")
-    print(f"2: {response_gpt35}")
-    print(f"Preferred Choice: {pref}")
+    preference = evaluator.choose(objective, chat_start, response1, response2)
 
-    pref2 = e.choose(objective, tcs, response_gpt35, response_davinvi3)
-    print(f"1: {response_gpt35}")
-    print(f"2: {response_davinvi3}")
-    print(f"Preferred Choice: {pref2}")
+    print(f"Comparing {model1.__class__.__name__} and {model2.__class__.__name__}:")
+    print(f"1: {response1}")
+    print(f"2: {response2}")
+    print(f"Preferred Choice: {preference}\n")
+
+
+def main():
+    """Main function to run the LLM evaluation."""
+    api_keys = get_api_keys()
+
+    # We'll use GPT-3.5 as the evaluator.
+    evaluator = llm_eval.GPT35Evaluator(api_keys["openai"])
+    models = initialize_models(api_keys)
+
+    objective = "We're building a chatbot to discuss a user's travel preferences and provide advice."
+    travel_chat_starts = [
+        "I'm planning to visit Tulsa in spring.",
+        "I'm looking for the cheapest flight to Spain today.",
+    ]
+
+    for chat_start in travel_chat_starts:
+        print(f"--- Evaluating for chat start: '{chat_start}' ---")
+        run_evaluation(
+            evaluator, objective, chat_start, models["cohere"], models["gpt3.5"]
+        )
+        run_evaluation(
+            evaluator, objective, chat_start, models["gpt3.5"], models["davinci3"]
+        )
+
+
+if __name__ == "__main__":
+    main()

@@ -1,5 +1,6 @@
 import os
 import sys
+import itertools
 import llm_eval
 from dotenv import load_dotenv
 
@@ -7,34 +8,48 @@ from dotenv import load_dotenv
 def get_api_keys():
     """Load and validate API keys from environment variables."""
     load_dotenv()
-    api_keys = {
+
+    possible_keys = {
         "openai": os.getenv("OPENAI_API_KEY"),
-        "anthropic": os.getenv("ANTHROPIC_API_KEY"),
         "cohere": os.getenv("COHERE_API_KEY"),
+        "grok": os.getenv("GROK_API_KEY"),
+        "mistral": os.getenv("MISTRAL_API_KEY"),
+        "deepseek": os.getenv("DEEPSEEK_API_KEY"),
+        "deepinfra": os.getenv("DEEPINFRA_API_KEY"),
     }
 
-    if not api_keys["openai"]:
-        print("Error: OPENAI_API_KEY not found in .env file or environment variables.")
-        sys.exit(1)
-    if not api_keys["cohere"]:
-        print("Error: COHERE_API_KEY not found in .env file or environment variables.")
+    available_keys = {k: v for k, v in possible_keys.items() if v}
+
+    if len(available_keys) < 2:
+        print("Error: At least two API keys must be set to run the evaluation.")
         sys.exit(1)
 
-    return api_keys
+    return available_keys
 
 
 def initialize_models(api_keys):
-    """Initialize the language models."""
-    return {
-        "cohere": llm_eval.CohereWrapper(api_keys["cohere"]),
-        "davinci3": llm_eval.OpenAIGPTWrapper(
+    """Initialize the language models for which API keys are available."""
+    models = {}
+    if "cohere" in api_keys:
+        models["cohere"] = llm_eval.CohereWrapper(api_keys["cohere"])
+    if "openai" in api_keys:
+        models["davinci3"] = llm_eval.OpenAIGPTWrapper(
             api_keys["openai"], model=llm_eval.OpenAIModel.DAVINCI3.value
-        ),
-        "gpt3.5": llm_eval.OpenAIGPTWrapper(api_keys["openai"]),
-    }
+        )
+        models["gpt3.5"] = llm_eval.OpenAIGPTWrapper(api_keys["openai"])
+    if "grok" in api_keys:
+        models["grok"] = llm_eval.GrokWrapper(api_keys["grok"])
+    if "mistral" in api_keys:
+        models["mistral"] = llm_eval.MistralWrapper(api_keys["mistral"])
+    if "deepseek" in api_keys:
+        models["deepseek"] = llm_eval.DeepSeekWrapper(api_keys["deepseek"])
+    if "deepinfra" in api_keys:
+        models["llama3"] = llm_eval.Llama3Wrapper(api_keys["deepinfra"])
+
+    return models
 
 
-def run_evaluation(evaluator, objective, chat_start, model1, model2):
+def run_evaluation(evaluator, objective, chat_start, model1_name, model1, model2_name, model2):
     """Run a single evaluation between two models."""
     messages = [
         {"role": "system", "content": objective},
@@ -46,7 +61,7 @@ def run_evaluation(evaluator, objective, chat_start, model1, model2):
 
     preference = evaluator.choose(objective, chat_start, response1, response2)
 
-    print(f"Comparing {model1.__class__.__name__} and {model2.__class__.__name__}:")
+    print(f"Comparing {model1_name} and {model2_name}:")
     print(f"1: {response1}")
     print(f"2: {response2}")
     print(f"Preferred Choice: {preference}\n")
@@ -55,10 +70,12 @@ def run_evaluation(evaluator, objective, chat_start, model1, model2):
 def main():
     """Main function to run the LLM evaluation."""
     api_keys = get_api_keys()
-
-    # We'll use GPT-3.5 as the evaluator.
-    evaluator = llm_eval.GPT35Evaluator(api_keys["openai"])
     models = initialize_models(api_keys)
+
+    # Use the first available model as the evaluator
+    evaluator_model_name = sorted(models.keys())[0]
+    evaluator = llm_eval.LLMEvaluator(models[evaluator_model_name])
+    print(f"Using {evaluator_model_name} as the evaluator.\n")
 
     objective = "We're building a chatbot to discuss a user's travel preferences and provide advice."
     travel_chat_starts = [
@@ -66,14 +83,14 @@ def main():
         "I'm looking for the cheapest flight to Spain today.",
     ]
 
+    model_pairs = list(itertools.combinations(models.items(), 2))
+
     for chat_start in travel_chat_starts:
         print(f"--- Evaluating for chat start: '{chat_start}' ---")
-        run_evaluation(
-            evaluator, objective, chat_start, models["cohere"], models["gpt3.5"]
-        )
-        run_evaluation(
-            evaluator, objective, chat_start, models["gpt3.5"], models["davinci3"]
-        )
+        for (model1_name, model1), (model2_name, model2) in model_pairs:
+            run_evaluation(
+                evaluator, objective, chat_start, model1_name, model1, model2_name, model2
+            )
 
 
 if __name__ == "__main__":

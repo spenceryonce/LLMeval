@@ -90,15 +90,14 @@ class BinaryEvaluator():
     def get_preference_history(self):
         return self.preferences
 
-class GPT35Evaluator():
+class LLMEvaluator():
 
-    def __init__(self, apikey):
-        self.preference = []
-        self.model = OpenAIGPTWrapper(apikey)
+    def __init__(self, model_wrapper):
+        self.model = model_wrapper
 
     def __repr__(self):
-        return f"BinaryEvaluator using {str(self.model)}"
-    
+        return f"LLMEvaluator using {str(self.model)}"
+
     def choose(self, objective, prompt, response1, response2):
         prompt = f"""We would like your feedback on a large language model we are building. Specifically, we would like you to compare two different LLM responses and let us know which one is better.
 
@@ -123,11 +122,12 @@ Please simply respond '1' or '2' as to which of the texts above address our earl
 
         response = self.model.complete_chat(messages, ['\n'])
 
-        # ChatGPT has a preferences for adding "." to the end of the reply.
-        if len(response) == 2:
-            response = response[0]
+        # The response should be a single character, '1' or '2'.
+        # We'll take the first character of the response to be safe.
+        if response and len(response) > 0:
+            return response[0]
 
-        return response
+        return "No response"
     
 class OpenAIModel(Enum):
     DAVINCI3 = "text-davinci-003"
@@ -136,6 +136,9 @@ class OpenAIModel(Enum):
     ADA1 = "text-ada-001"
     GPT3 = "gpt-3.5-turbo"
     GPT4 = "gpt-4"
+
+from mistralai import Mistral
+from xai_sdk import Client as XAIClient
 
 class OpenAIGPTWrapper():
 
@@ -272,6 +275,71 @@ class CohereWrapper():
         )
         resp = response.generations[0].text
         return resp
+
+class GrokWrapper():
+
+    def __init__(self, apikey, model="grok-1.5-flash"):
+        self.client = XAIClient(api_key=apikey)
+        self.model = model
+
+    def __repr__(self):
+        return f"GrokWrapper(model={self.model})"
+
+    def complete_chat(self, messages, append_role=None):
+        chat = self.client.chat.create(
+            model=self.model,
+            messages=messages
+        )
+        response = chat.sample()
+        return response.content
+
+class MistralWrapper():
+
+    def __init__(self, apikey, model="mistral-large-latest"):
+        self.client = Mistral(api_key=apikey)
+        self.model = model
+
+    def __repr__(self):
+        return f"MistralWrapper(model={self.model})"
+
+    def complete_chat(self, messages, append_role=None):
+        response = self.client.chat(
+            model=self.model,
+            messages=[m for m in messages if m['role'] != 'system'] # Mistral doesn't support system prompts
+        )
+        return response.choices[0].message.content
+
+class DeepSeekWrapper(OpenAIGPTWrapper):
+
+    def __init__(self, apikey, model="deepseek-chat"):
+        super().__init__(apikey, model)
+        openai.api_base = "https://api.deepseek.com/v1"
+
+    def __repr__(self):
+        return f"DeepSeekWrapper(model={self.model})"
+
+    def complete_chat(self, messages, append_role=None):
+        response = openai.ChatCompletion.create(
+            model=self.model,
+            messages=messages
+        )
+        return response['choices'][0]['message']['content']
+
+class Llama3Wrapper(OpenAIGPTWrapper):
+
+    def __init__(self, apikey, model="meta-llama/Meta-Llama-3-8B-Instruct"):
+        super().__init__(apikey, model)
+        openai.api_base = "https://api.deepinfra.com/v1/openai"
+
+    def __repr__(self):
+        return f"Llama3Wrapper(model={self.model})"
+
+    def complete_chat(self, messages, append_role=None):
+        response = openai.ChatCompletion.create(
+            model=self.model,
+            messages=messages
+        )
+        return response['choices'][0]['message']['content']
 
 class ChatBot():
 

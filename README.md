@@ -30,75 +30,40 @@ A class for wrapping Anthropic's Claude LLM.
 9. **CohereWrapper**
 A class for wrapping Cohere's LLM.
 
-10. **ChatBot**
+10. **GrokWrapper**
+A class for wrapping Grok's models.
+
+11. **MistralWrapper**
+A class for wrapping Mistral's models.
+
+12. **DeepSeekWrapper**
+A class for wrapping DeepSeek's models.
+
+13. **Llama3Wrapper**
+A class for wrapping Llama 3 models via DeepInfra.
+
+14. **ChatBot**
 A class for creating chatbot instances based on provided LLMs.
 
 ## Required Setup
-1. Install dotenv (linux & mac), or python-dotenv (Windows)
-```cmd
-pip install python-dotenv
-```
-2. Install openai, cohere
-```cmd
-pip install openai cohere
-```
-OR
 1. Install all from requirements.txt
 ```cmd
 pip install -r requirements.txt
 ```
+2. Create a `.env` file in the root of the project and add the following API keys:
+```
+OPENAI_API_KEY=your_openai_api_key
+COHERE_API_KEY=your_cohere_api_key
+GROK_API_KEY=your_grok_api_key
+MISTRAL_API_KEY=your_mistral_api_key
+DEEPSEEK_API_KEY=your_deepseek_api_key
+DEEPINFRA_API_KEY=your_deepinfra_api_key
+```
 
 ## Example Usage
-### Import the required libraries
-```python
-import os
-from dotenv import load_dotenv
-import llm_eval
+The `main.py` script provides an example of how to use the library. It initializes all the supported models, defines an objective, and then runs a series of evaluations comparing each model to GPT-3.5.
 
-load_dotenv()
-openai_api_key = os.getenv("OPENAI_API_KEY")
-anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-cohere_api_key = os.getenv("COHERE_API_KEY")
-```
-### We'll use GPT-3.5 as the evaluator.
-```python
-e = llm_eval.GPT35Evaluator(openai_api_key)
-```
-### Setup the Objective & Initial User Chats
-```python
-objective = "We're building a chatbot to discuss a user's travel preferences and provide advice."
-
-# Chats that have been launched by users.
-travel_chat_starts = [
-    "I'm planning to visit Tulsa in spring.",
-    "I'm looking for the cheapest flight to Spain today."
-]
-```
-### Create the AI Models
-```python
-cohere_model = llm_eval.CohereWrapper(cohere_api_key)
-davinici3_model = llm_eval.OpenAIGPTWrapper(openai_api_key, model=llm_eval.OpenAIModel.DAVINCI3.value)
-chatgpt35_model = llm_eval.OpenAIGPTWrapper(openai_api_key)
-```
-### Run The Evaluator for Each User Chat
-```python
-for tcs in travel_chat_starts:
-
-    messages = [{"role":"system", "content":objective},
-            {"role":"user", "content":tcs}]
-
-    response_cohere = cohere_model.complete_chat(messages, "assistant")
-    response_gpt35 = chatgpt35_model.complete_chat(messages, "assistant")
-
-    response_davinvi3 = davinici3_model.complete_chat(messages, "assistant")
-
-    pref = e.choose(objective, tcs, response_cohere, response_gpt35)
-    print(f"1: {response_cohere}")
-    print(f"2: {response_gpt35}")
-    print(f"Preferred Choice: {pref}")
-
-    pref2 = e.choose(objective, tcs, response_gpt35, response_davinvi3)
-    print(f"1: {response_gpt35}")
-    print(f"2: {response_davinvi3}")
-    print(f"Preferred Choice: {pref2}")
+To run the example:
+```bash
+python main.py
 ```

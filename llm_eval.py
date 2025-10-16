@@ -344,11 +344,14 @@ class Llama3Wrapper(OpenAIGPTWrapper):
 class ChatBot():
 
     def __init__(self, llm, initial_system_prompt="You are a friendly chatbot assistant."):
-        self.llm = llm 
-        self.messages = []
+        self.llm = llm
+        self.initial_system_prompt = initial_system_prompt
+        self.messages = [
+            {"role": "system", "content": self.initial_system_prompt}
+        ]
 
     def append_message(self, role, message):
-        self.messages.append({"role":role, "content":message})
+        self.messages.append({"role": role, "content": message})
 
     def chat(self, message):
         self.append_message('user', message)
